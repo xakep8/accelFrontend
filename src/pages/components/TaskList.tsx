@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { authenticatedFetch } from "../../utils/auth";
 import TaskCard from "./taskCard";
 import TaskModal from "./TaskModal";
@@ -20,7 +20,6 @@ export default function TaskList() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [search, setSearch] = useState("");
-  const [filteredList, setFilteredList] = useState<Task[]>([]);
   const [dateFilter, setDateFilter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,9 +40,36 @@ export default function TaskList() {
     fetchTasks();
   }, []);
 
-  useEffect(() => {
-    applyFilters(search, dateFilter);
-  }, [list]);
+  const filteredList = useMemo(() => {
+    let filtered = list;
+
+    // Apply date filter
+    if (dateFilter) {
+      filtered = filtered.filter((task) => {
+        if (!task.dueDate) return false;
+        const taskDate = new Date(task.dueDate);
+        const filterDate = new Date(dateFilter);
+        return (
+          taskDate.getFullYear() === filterDate.getFullYear() &&
+          taskDate.getMonth() === filterDate.getMonth() &&
+          taskDate.getDate() === filterDate.getDate()
+        );
+      });
+    }
+
+    // Apply search filter
+    if (search.trim() !== "") {
+      const lowerSearch = search.toLowerCase();
+      filtered = filtered.filter(
+        (task) =>
+          task.title.toLowerCase().includes(lowerSearch) ||
+          (task.description &&
+            task.description.toLowerCase().includes(lowerSearch))
+      );
+    }
+
+    return filtered;
+  }, [list, search, dateFilter]);
 
   const handleAddTask = () => {
     setModalMode("create");
@@ -60,60 +86,21 @@ export default function TaskList() {
   const handleModalSuccess = (task: Task) => {
     if (modalMode === "create") {
       setList((prevList) => [...prevList, task]);
-      setFilteredList((prevList) => [...prevList, task]);
       if (task.status === "COMPLETED") {
         setCompleted((prev) => prev + 1);
       }
     } else {
       setList((prevList) => prevList.map((t) => (t.id === task.id ? task : t)));
-      setFilteredList((prevList) =>
-        prevList.map((t) => (t.id === task.id ? task : t))
-      );
       // Recalculate completed count
+      const updatedList = list.map((t) => (t.id === task.id ? task : t));
       setCompleted(
-        list.filter((t) =>
-          t.id === task.id
-            ? task.status === "COMPLETED"
-            : t.status === "COMPLETED"
-        ).length
+        updatedList.filter((t) => t.status === "COMPLETED").length
       );
     }
-  };
-
-  const applyFilters = (searchValue: string, dateFilterValue: string | null) => {
-    let filtered = list;
-
-    // Apply date filter
-    if (dateFilterValue) {
-      filtered = filtered.filter((task) => {
-        if (!task.dueDate) return false;
-        const taskDate = new Date(task.dueDate);
-        const filterDate = new Date(dateFilterValue);
-        return (
-          taskDate.getFullYear() === filterDate.getFullYear() &&
-          taskDate.getMonth() === filterDate.getMonth() &&
-          taskDate.getDate() === filterDate.getDate()
-        );
-      });
-    }
-
-    // Apply search filter
-    if (searchValue.trim() !== "") {
-      const lowerSearch = searchValue.toLowerCase();
-      filtered = filtered.filter(
-        (task) =>
-          task.title.toLowerCase().includes(lowerSearch) ||
-          (task.description &&
-            task.description.toLowerCase().includes(lowerSearch))
-      );
-    }
-
-    setFilteredList(filtered);
   };
 
   const handleSearch = (value: string) => {
     setSearch(value);
-    applyFilters(value, dateFilter);
   };
 
   const handleDateFilter = (date: Date) => {
@@ -122,10 +109,8 @@ export default function TaskList() {
     // If clicking the same date, clear the filter
     if (dateFilter === dateString) {
       setDateFilter(null);
-      applyFilters(search, null);
     } else {
       setDateFilter(dateString);
-      applyFilters(search, dateString);
     }
   };
 
@@ -233,7 +218,6 @@ export default function TaskList() {
               setList={setList}
               setCompleted={setCompleted}
               onEdit={handleEditTask}
-              setFilteredList={setFilteredList}
             />
           </div>
         ))}

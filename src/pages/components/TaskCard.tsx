@@ -9,13 +9,11 @@ export default function TaskCard({
   setList,
   setCompleted,
   onEdit,
-  setFilteredList,
 }: {
   task: Task;
   setList: React.Dispatch<React.SetStateAction<Task[]>>;
   setCompleted: React.Dispatch<React.SetStateAction<number>>;
   onEdit?: (task: Task) => void;
-  setFilteredList: React.Dispatch<React.SetStateAction<Task[]>>;
 }) {
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     // Persist the change to the API
@@ -35,11 +33,6 @@ export default function TaskCard({
         console.error("Failed to update task status");
       } else {
         setList((prevList) =>
-          prevList.map((t) =>
-            t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t
-          )
-        );
-        setFilteredList((prevList) =>
           prevList.map((t) =>
             t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t
           )
@@ -70,7 +63,6 @@ export default function TaskCard({
         console.error("Failed to delete task");
       } else {
         setList((prevList) => prevList.filter((t) => t.id !== taskId));
-        setFilteredList((prevList) => prevList.filter((t) => t.id !== taskId));
         if (task.status === "COMPLETED") {
           setCompleted((prevCompleted) => prevCompleted - 1);
         }
