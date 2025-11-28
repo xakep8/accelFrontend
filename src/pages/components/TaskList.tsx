@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { authenticatedFetch } from "../../utils/auth";
-import TaskCard from "./taskCard";
+import TaskCard from "./TaskCard";
 import TaskModal from "./TaskModal";
 
 export type TaskStatus = "PENDING" | "COMPLETED" | "IN_PROGRESS";
