@@ -1,6 +1,8 @@
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { authenticatedFetch } from "../../utils/auth";
 import type { Task, TaskStatus } from "./TaskList";
 
@@ -24,7 +26,12 @@ export default function TaskModal({
     description: "",
     status: "PENDING" as TaskStatus,
   });
-  const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    description?: string;
+    dueDate?: string;
+  }>({});
   const [submitting, setSubmitting] = useState(false);
 
   // Initialize form when task changes or modal opens
@@ -35,12 +42,14 @@ export default function TaskModal({
         description: task.description || "",
         status: task.status,
       });
+      setDueDate(task.dueDate ? new Date(task.dueDate) : null);
     } else {
       setFormData({
         title: "",
         description: "",
         status: "PENDING",
       });
+      setDueDate(null);
     }
     setErrors({});
   }, [task, mode, isOpen]);
@@ -57,7 +66,7 @@ export default function TaskModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     setSubmitting(true);
     try {
       const url =
@@ -70,7 +79,10 @@ export default function TaskModal({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          dueDate: dueDate ? dueDate.toISOString() : null,
+        }),
       });
 
       if (!response.ok) {
@@ -162,7 +174,9 @@ export default function TaskModal({
                       disabled={submitting}
                     />
                     {errors.title && (
-                      <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.title}
+                      </p>
                     )}
                   </div>
 
@@ -178,14 +192,19 @@ export default function TaskModal({
                       rows={4}
                       value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
                       }
                       className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       placeholder="Enter task description (optional)"
                       disabled={submitting}
                     />
                     {errors.description && (
-                      <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.description}
+                      </p>
                     )}
                   </div>
 
@@ -212,6 +231,32 @@ export default function TaskModal({
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="COMPLETED">Completed</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="dueDate"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Due Date
+                    </label>
+                    <DatePicker
+                      selected={dueDate}
+                      onChange={(date) => setDueDate(date)}
+                      dateFormat="MMMM d, yyyy"
+                      placeholderText="Select a due date"
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                      disabled={submitting}
+                      isClearable
+                      minDate={new Date()}
+                      showPopperArrow={false}
+                      onChangeRaw={(e) => e?.preventDefault()}
+                    />
+                    {errors.dueDate && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.dueDate}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-3 pt-4">

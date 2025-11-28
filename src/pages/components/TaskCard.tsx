@@ -112,6 +112,12 @@ export default function TaskCard({
           </div>
         )}
       </div>
+      <div className="flex w-full lg:flex-row flex-col lg:justify-end justify-center items-center mb-5">
+        <p>Due Date:</p>
+        <p className="text-xl font-semibold">
+          {new Date(task.dueDate).toLocaleDateString()}
+        </p>
+      </div>
       <div className="flex w-full lg:justify-end justify-center lg:flex-row flex-col items-center mb-5">
         <p>Status:</p>
         <StatusDrop

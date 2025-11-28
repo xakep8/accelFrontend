@@ -9,6 +9,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
+  dueDate: string;
   status: TaskStatus;
 }
 
@@ -20,6 +21,7 @@ export default function TaskList() {
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [search, setSearch] = useState("");
   const [filteredList, setFilteredList] = useState<Task[]>([]);
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTasks() {
@@ -29,7 +31,6 @@ export default function TaskList() {
       if (response.ok) {
         const data = await response.json();
         setList(data);
-        setFilteredList(data);
         setCompleted(
           data.filter((task: Task) => task.status === "COMPLETED").length
         );
@@ -39,6 +40,10 @@ export default function TaskList() {
     }
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+    applyFilters(search, dateFilter);
+  }, [list]);
 
   const handleAddTask = () => {
     setModalMode("create");
@@ -75,28 +80,121 @@ export default function TaskList() {
     }
   };
 
+  const applyFilters = (searchValue: string, dateFilterValue: string | null) => {
+    let filtered = list;
+
+    // Apply date filter
+    if (dateFilterValue) {
+      filtered = filtered.filter((task) => {
+        if (!task.dueDate) return false;
+        const taskDate = new Date(task.dueDate);
+        const filterDate = new Date(dateFilterValue);
+        return (
+          taskDate.getFullYear() === filterDate.getFullYear() &&
+          taskDate.getMonth() === filterDate.getMonth() &&
+          taskDate.getDate() === filterDate.getDate()
+        );
+      });
+    }
+
+    // Apply search filter
+    if (searchValue.trim() !== "") {
+      const lowerSearch = searchValue.toLowerCase();
+      filtered = filtered.filter(
+        (task) =>
+          task.title.toLowerCase().includes(lowerSearch) ||
+          (task.description &&
+            task.description.toLowerCase().includes(lowerSearch))
+      );
+    }
+
+    setFilteredList(filtered);
+  };
+
   const handleSearch = (value: string) => {
     setSearch(value);
-    if (value.trim() === "") {
-      setFilteredList(list);
+    applyFilters(value, dateFilter);
+  };
+
+  const handleDateFilter = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0];
+    
+    // If clicking the same date, clear the filter
+    if (dateFilter === dateString) {
+      setDateFilter(null);
+      applyFilters(search, null);
     } else {
-      const lowerSearch = value.toLowerCase();
-      setFilteredList(
-        list.filter(
-          (task) =>
-            task.title.toLowerCase().includes(lowerSearch) ||
-            (task.description &&
-              task.description.toLowerCase().includes(lowerSearch))
-        )
-      );
+      setDateFilter(dateString);
+      applyFilters(search, dateString);
     }
   };
 
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+
+  const today = new Date();
+  const currentDay = today.getDay();
+
+  // Get Sunday of current week
+  const getSundayOfWeek = () => {
+    const date = new Date(today);
+    const day = date.getDay();
+    const diff = date.getDate() - day;
+    return new Date(date.setDate(diff));
+  };
+
+  const sundayDate = getSundayOfWeek();
+
+  // Generate dates for the week
+  const weekDates = daysOfWeek.map((_, index) => {
+    const date = new Date(sundayDate);
+    date.setDate(sundayDate.getDate() + index);
+    return date.getDate();
+  });
+
   return (
-    <div className="flex w-full h-full px-10 flex-col py-10">
-      <div className="flex w-full flex-col justify-between items-center mb-10">
+    <div className="flex w-full h-full flex-col py-10">
+      <div className="flex w-full flex-col items-center mb-10">
         <h1 className="text-3xl font-bold">Task List</h1>
-        <div className="flex mt-10 justify-between">
+        <div className="flex items-start justify-baseline w-full overflow-scroll px-2">
+          <div className="flex gap-2 mt-6">
+            {daysOfWeek.map((day, index) => {
+              const cardDate = new Date(sundayDate);
+              cardDate.setDate(sundayDate.getDate() + index);
+              const cardDateString = cardDate.toISOString().split('T')[0];
+              const isFiltered = dateFilter === cardDateString;
+              
+              return (
+                <div
+                  key={day}
+                  onClick={() => handleDateFilter(cardDate)}
+                  className={`flex flex-col items-center justify-center px-4 py-3 rounded-lg cursor-pointer transition-all ${
+                    isFiltered
+                      ? "bg-green-500 text-white ring-4 ring-green-300"
+                      : index === currentDay
+                      ? "bg-blue-500 text-white hover:bg-blue-600"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  <span className="text-xs font-semibold uppercase">
+                    {day.slice(0, 3)}
+                  </span>
+                  <span className="text-2xl font-bold mt-1">
+                    {weekDates[index]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex mt-10 justify-between px-10">
           <div className="px-5 py-3 bg-gray-500 rounded-2xl text-white">
             <p className="text-sm">
               Completed Tasks: {completed} / {list.length}
@@ -124,20 +222,22 @@ export default function TaskList() {
           Add New Task
         </button>
       </div>
-      {filteredList.map((task, index) => (
-        <div
-          key={index}
-          className="flex w-full justify-between items-center mb-5"
-        >
-          <TaskCard
-            task={task}
-            setList={setList}
-            setCompleted={setCompleted}
-            onEdit={handleEditTask}
-            setFilteredList={setFilteredList}
-          />
-        </div>
-      ))}
+      <div className="flex flex-col px-10">
+        {filteredList.map((task, index) => (
+          <div
+            key={index}
+            className="flex w-full justify-between items-center mb-5"
+          >
+            <TaskCard
+              task={task}
+              setList={setList}
+              setCompleted={setCompleted}
+              onEdit={handleEditTask}
+              setFilteredList={setFilteredList}
+            />
+          </div>
+        ))}
+      </div>
       <TaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
